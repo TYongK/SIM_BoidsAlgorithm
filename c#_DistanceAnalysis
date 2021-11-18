@@ -1,0 +1,109 @@
+#region BoidsVariables
+        List<Boid> Boids_GH = new List<Boid>();
+        List<Point2d> Boids_Points_Result = new List<Point2d>();
+        List<Vector2d> Boids_VectorSpeed_Result = new List<Vector2d>();
+        Random Rand = new Random();
+        int BoidsCount = 10;
+        int PredatorCount = 3;
+        double boids_Max_Speed = 0.1;
+        double Speed_Scale = 1;
+        double powerFlock = .0003;
+        double powerAlign = .001;
+        double powerAvoid = .001;
+        double powerPredator = .0005;
+        double powerWall = .5;
+        double spanFlock = 50;
+        double spanAlign = 50;
+        double spanAvoid = 50;
+        double spanPredator = 50;
+        double spanWall = 50;
+        public static Curve field_Curve;
+        public static Mesh field_Mesh;
+#endregion
+
+#region Point_Curve_Analysis
+        static Point3d ClosestPoint(Curve curve_Closed, Point3d point_BasePoint)
+        {
+            double par;
+            curve_Closed.ClosestPoint(point_BasePoint, out par);
+            return curve_Closed.PointAt(par);
+        }
+
+        static double Xdistance_ClosestPoint(Curve curve_Closed, Point3d point_BasePoint)
+        {
+
+            Point3d second_Point = ClosestPoint(curve_Closed, point_BasePoint);
+            return Math.Abs(point_BasePoint.X - second_Point.X);
+        }
+
+        static double Ydistance_ClosestPoint(Curve curve_Closed, Point3d point_BasePoint)
+        {
+
+            Point3d second_Point = ClosestPoint(curve_Closed, point_BasePoint);
+            return Math.Abs(point_BasePoint.Y - second_Point.Y);
+        }
+
+        static double distance_ClosestPoint(Curve curve_Closed, Point3d point_BasePoint)
+        {
+
+            Point3d second_Point = ClosestPoint(curve_Closed, point_BasePoint);
+            return Math.Sqrt(Math.Pow((point_BasePoint.X - second_Point.X), 2) + Math.Pow((point_BasePoint.Y - second_Point.Y), 2));
+        }
+        static Vector3d unitVectorInside_BasePoint(Curve curve_Closed, Point3d point_BasePoint)
+        {
+
+            Point3d second_Point = ClosestPoint(curve_Closed, point_BasePoint);
+            Vector3d result_Vector;
+
+
+            if (IsInside(curve_Closed, point_BasePoint))
+            {
+                result_Vector = -1 * new Vector3d(second_Point.X - point_BasePoint.X, second_Point.Y - point_BasePoint.Y, second_Point.Z - point_BasePoint.Z);
+            }
+            else
+            {
+                result_Vector = new Vector3d(second_Point.X - point_BasePoint.X, second_Point.Y - point_BasePoint.Y, second_Point.Z - point_BasePoint.Z);
+            }
+
+            result_Vector.Unitize();
+            return result_Vector;
+        }
+
+        static bool IsInside(Curve crv, Point3d pt)
+        {
+
+            Polyline polyCurve = (crv.ToPolyline(0.1, 0.1, 0.1, 1000)).ToPolyline();
+            Point3d pt1, pt2;
+            bool oddNodes = false;
+
+            for (int i = 0; i < polyCurve.SegmentCount; i++) //for each contour line
+            {
+
+                pt1 = polyCurve.SegmentAt(i).From; //get start and end pt
+                pt2 = polyCurve.SegmentAt(i).To;
+
+                if ((pt1[1] < pt[1] && pt2[1] >= pt[1] || pt2[1] < pt[1] && pt1[1] >= pt[1]) && (pt1[0] <= pt[0] || pt2[0] <= pt[0])) //if pt is between pts in y, and either of pts is before pt in x
+                    oddNodes ^= (pt2[0] + (pt[1] - pt2[1]) * (pt1[0] - pt2[0]) / (pt1[1] - pt2[1]) < pt[0]); //^= is xor
+                                                                                                             //end.X + (pt-end).Y   * (start-end).X  /(start-end).Y   <   pt.X
+            }
+
+
+            if (!oddNodes)
+            {
+                double minDist = 1e10;
+                for (int i = 0; i < polyCurve.SegmentCount; i++)
+                {
+                    Point3d cp = polyCurve.SegmentAt(i).ClosestPoint(pt, true);
+                    //Point3d cp = mvContour[i].closestPoint(pt);
+                    //minDist = min(minDist, cp.distance(pt));
+                    minDist = Math.Min(minDist, cp.DistanceTo(pt));
+                }
+                if (minDist < 1e-10)
+                    return true;
+            }
+
+            if (oddNodes) return true;
+
+            return false;
+        }
+        #endregion
