@@ -6,6 +6,18 @@
 
 ![insta](https://user-images.githubusercontent.com/93954052/142470808-b39f1aff-6db7-459f-ac11-f52160322caf.gif)
 
-*<Resource>*
+**Process**
+Even though the Boids Algorithm code can be found from the "Resources".
+
+I had to use the looping scriped I made before. Link: https://github.com/TYongK/GH_Timer
+
++ add random point generation on the mesh, generated from the boundary curve.
+
++ and measure the shortest distance between curve (wall) and boids to change the velocity of the boids when they are close to the wall.
+
+**Resources**.
 What is Boids?
 https://www.youtube.com/watch?v=4LWmRuB-uNU
+https://swharden.com/CsharpDataVis/boids/boids.md.html
+
+
