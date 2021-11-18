@@ -1,0 +1,99 @@
+        #region BoidsVariables
+        List<Boid> Boids_GH = new List<Boid>();
+        List<Point2d> Boids_Points_Result = new List<Point2d>();
+        List<Vector2d> Boids_VectorSpeed_Result = new List<Vector2d>();
+        Random Rand = new Random();
+        int BoidsCount = 10;
+        int PredatorCount = 3;
+        double boids_Max_Speed = 0.1;
+        double Speed_Scale = 1;
+        double powerFlock = .0003;
+        double powerAlign = .001;
+        double powerAvoid = .001;
+        double powerPredator = .0005;
+        double powerWall = .5;
+        double spanFlock = 50;
+        double spanAlign = 50;
+        double spanAvoid = 50;
+        double spanPredator = 50;
+        double spanWall = 50;
+        public static Curve field_Curve;
+        public static Mesh field_Mesh;
+        #endregion
+        
+        #region RandomPointsInCurve
+        public List<Rhino.Geometry.Point2d> RandomPointsInCurve(Mesh fMesh, int N)
+        {
+                //Brep[] field_Brep = Brep.CreatePlanarBreps(closed_Curve, 01);
+                //MeshingParameters mp = new MeshingParameters();
+                //mp.MaximumEdgeLength = 10000000;
+                //Mesh[] field_Mesh = Mesh.CreateFromBrep(field_Brep[0], mp);
+
+                Mesh M = fMesh;
+
+                Rhino.Geometry.Collections.MeshFaceList faces = M.Faces;
+                faces.ConvertQuadsToTriangles();
+                Rhino.Geometry.Collections.MeshVertexList vertices = M.Vertices;
+                // Calculating area for each face
+                // code by David Rutten from https://www.grasshopper3d.com/forum/topics/what-is-the-most-efficient-way-to-convert-mesh-faces-into-breps
+                List<double> areas = new List<double>(faces.Count);
+                for (int i = 0; i < faces.Count; i++)
+                {
+                    Rhino.Geometry.MeshFace face = faces[i];
+                    double area = 0;
+                    if (face.IsTriangle)
+                    {
+                        Point3d p0 = vertices[face.A];
+                        Point3d p1 = vertices[face.B];
+                        Point3d p2 = vertices[face.C];
+                        Vector3d v0 = p0 - p1;
+                        Vector3d v1 = p2 - p1;
+                        Vector3d cp = Vector3d.CrossProduct(v0, v1);
+                        area = 0.5 * cp.Length;
+                    }
+                    else
+                    {
+                        if (face.IsQuad)
+                        {
+                            Point3d p0 = vertices[face.A];
+                            Point3d p1 = vertices[face.B];
+                            Point3d p2 = vertices[face.C];
+                            Point3d p3 = vertices[face.D];
+                            Vector3d v0 = p0 - p1;
+                            Vector3d v1 = p2 - p1;
+                            Vector3d v2 = p0 - p3;
+                            Vector3d v3 = p2 - p3;
+                            Vector3d cp0 = Vector3d.CrossProduct(v0, v1);
+                            Vector3d cp1 = Vector3d.CrossProduct(v2, v3);
+                            area = 0.5 * cp0.Length + 0.5 * cp1.Length;
+                        }
+                    }
+                    areas.Add(area);
+                }
+                Random rnd = new Random();
+                List<Rhino.Geometry.Point2d> pts = new List<Rhino.Geometry.Point2d>();
+                double totalarea = 0.999999999 * (Rhino.Geometry.AreaMassProperties.Compute(M, true, false, false, false)).Area;
+                double fraction = totalarea / N;
+                double resto = 0;
+                for (int i = 0; i < faces.Count; i++)
+                {
+                    double nn = Math.Floor((areas[i] + resto) / fraction);
+                    for (int j = 0; j < nn; j++)
+                    {
+                        double par0 = Math.Pow(rnd.NextDouble(), 1.5);
+                        double par1 = Math.Pow(rnd.NextDouble(), 1.5);
+                        double par2 = Math.Pow(rnd.NextDouble(), 1.5);
+                        double tot = par0 + par1 + par2;
+                        par0 = par0 / tot;
+                        par1 = par1 / tot;
+                        par2 = par2 / tot;
+                        Rhino.Geometry.Point3d p = M.PointAt(i, par0, par1, par2, 0.0);
+
+                        pts.Add(new Point2d(p.X, p.Y));
+
+                    }
+                    resto = (areas[i] + resto) - nn * fraction;
+                }
+                return pts;
+        }
+        #endregion
