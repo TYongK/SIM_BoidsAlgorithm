@@ -9,7 +9,7 @@
 **Process**
 Even though the Boids Algorithm code can be found from the "Resources".
 
-I had to use the looping scriped I made before. Link: https://github.com/TYongK/GH_Timer
++ add updating loop scriped I made before. Link: https://github.com/TYongK/GH_Timer
 
 + add random point generation on the mesh, generated from the boundary curve.
 
