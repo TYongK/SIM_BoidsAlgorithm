@@ -1,0 +1,204 @@
+        #region BoidsVariables
+        List<Boid> Boids_GH = new List<Boid>();
+        List<Point2d> Boids_Points_Result = new List<Point2d>();
+        List<Vector2d> Boids_VectorSpeed_Result = new List<Vector2d>();
+        Random Rand = new Random();
+        int BoidsCount = 10;
+        int PredatorCount = 3;
+        double boids_Max_Speed = 0.1;
+        double Speed_Scale = 1;
+        double powerFlock = .0003;
+        double powerAlign = .001;
+        double powerAvoid = .001;
+        double powerPredator = .0005;
+        double powerWall = .5;
+        double spanFlock = 50;
+        double spanAlign = 50;
+        double spanAvoid = 50;
+        double spanPredator = 50;
+        double spanWall = 50;
+        public static Curve field_Curve;
+        public static Mesh field_Mesh;
+        #endregion
+        
+        
+
+        #region Advance
+        public void Advance(bool bounceOffWalls = true)
+        {
+            // update void speed and direction (velocity) based on rules
+            foreach (var boid in Boids_GH)
+            {
+                (double flockXvel, double flockYvel) = Flock(boid, spanFlock, powerFlock);
+                (double alignXvel, double alignYvel) = Align(boid, spanAlign, powerAlign);
+                (double avoidXvel, double avoidYvel) = Avoid(boid, spanAvoid, powerAvoid);
+                (double predXvel, double predYval) = Predator(boid, spanPredator, powerPredator);
+                boid.Xvel += flockXvel + avoidXvel + alignXvel + predXvel;
+                boid.Yvel += flockYvel + avoidYvel + alignYvel + predYval;
+            }
+
+            // move all boids forward in time
+            foreach (var boid in Boids_GH)
+            {
+                boid.Accelerate(Speed_Scale);
+                boid.MoveForward(1, boids_Max_Speed);
+                if (bounceOffWalls)
+                    BounceOffWalls(boid);
+            }
+        }
+        #endregion
+
+        #region Boids
+        public class Boid
+        {
+            public double X;
+            public double Y;
+            public double Xvel;
+            public double Yvel;
+
+            public Boid(double x, double y, double xVel, double yVel)
+            {
+                (X, Y, Xvel, Yvel) = (x, y, xVel, yVel);
+            }
+
+            public Boid(Random rand, double xRand, double yRand, double speed)
+            {
+                X = xRand;
+                Y = yRand;
+                Xvel = (rand.NextDouble() - .5) * speed;
+                Yvel = (rand.NextDouble() - .5) * speed;
+            }
+
+            //Rule 4: Speed Limit
+            public void MoveForward(double minSpeed = 1, double maxSpeed = 5)
+            {
+                X += Xvel;
+                Y += Yvel;
+
+                var speed = GetSpeed();
+                if (speed > maxSpeed)
+                {
+                    Xvel = (Xvel / speed) * maxSpeed;
+                    Yvel = (Yvel / speed) * maxSpeed;
+                }
+                else if (speed < minSpeed)
+                {
+                    Xvel = (Xvel / speed) * minSpeed;
+                    Yvel = (Yvel / speed) * minSpeed;
+                }
+
+                if (double.IsNaN(Xvel))
+                    Xvel = 0;
+                if (double.IsNaN(Yvel))
+                    Yvel = 0;
+            }
+
+            public (double x, double y) GetPosition(double time)
+            {
+                return (X + Xvel * time, Y + Yvel * time);
+            }
+
+            public void Accelerate(double scale = 1.0)
+            {
+                Xvel *= scale;
+                Yvel *= scale;
+            }
+
+            public double GetAngle()
+            {
+                if (double.IsNaN(Xvel) || double.IsNaN(Yvel))
+                    return 0;
+                if (Xvel == 0 && Yvel == 0)
+                    return 0;
+                double angle = Math.Atan(Yvel / Xvel) * 180 / Math.PI - 90;
+                if (Xvel < 0)
+                    angle += 180;
+                return angle;
+            }
+
+            public double GetSpeed()
+            {
+                return Math.Sqrt(Xvel * Xvel + Yvel * Yvel);
+            }
+
+            public double GetDistance(Boid otherBoid)
+            {
+                double dX = otherBoid.X - X;
+                double dY = otherBoid.Y - Y;
+                double dist = Math.Sqrt(dX * dX + dY * dY);
+                return dist;
+            }
+
+        }
+
+        //Rule 1: Steer Toward Center of Mass of Nearby Boids
+        private (double xVel, double yVel) Flock(Boid boid, double distance, double power)
+        {
+            var neighbors = Boids_GH.Where(x => x.GetDistance(boid) < distance);
+            double meanX = neighbors.Sum(x => x.X) / neighbors.Count();
+            double meanY = neighbors.Sum(x => x.Y) / neighbors.Count();
+            double deltaCenterX = meanX - boid.X;
+            double deltaCenterY = meanY - boid.Y;
+
+            return (deltaCenterX * power, deltaCenterY * power);
+        }
+
+        //Rule 2: Mimic Direction and Speed of Nearby Boids
+        private (double xVel, double yVel) Align(Boid boid, double distance, double power)
+        {
+            var neighbors = Boids_GH.Where(x => x.GetDistance(boid) < distance);
+            double meanXvel = neighbors.Sum(x => x.Xvel) / neighbors.Count();
+            double meanYvel = neighbors.Sum(x => x.Yvel) / neighbors.Count();
+            double dXvel = meanXvel - boid.Xvel;
+            double dYvel = meanYvel - boid.Yvel;
+            return (dXvel * power, dYvel * power);
+        }
+
+        //Rule 3: Steer Away from Extremely Close Boids
+        private (double xVel, double yVel) Avoid(Boid boid, double distance, double power)
+        {
+            var neighbors = Boids_GH.Where(x => x.GetDistance(boid) < distance);
+            (double sumClosenessX, double sumClosenessY) = (0, 0);
+            foreach (var neighbor in neighbors)
+            {
+                double closeness = distance - boid.GetDistance(neighbor);
+                sumClosenessX += (boid.X - neighbor.X) * closeness;
+                sumClosenessY += (boid.Y - neighbor.Y) * closeness;
+            }
+            return (sumClosenessX * power, sumClosenessY * power);
+        }
+
+        //Rule 5: Avoid Edges
+        private void BounceOffWalls(Boid boid)
+        {
+            Point3d boidPoint = new Point3d(boid.X, boid.Y, 0);
+
+            if (IsInside(field_Curve, boidPoint) && distance_ClosestPoint(field_Curve, boidPoint) < spanWall)
+            {
+                boid.Xvel += unitVectorInside_BasePoint(field_Curve, boidPoint).X * powerWall;
+                boid.Yvel += unitVectorInside_BasePoint(field_Curve, boidPoint).Y * powerWall;
+            }
+            else if (IsInside(field_Curve, boidPoint) != true)
+            {
+                boid.Xvel += unitVectorInside_BasePoint(field_Curve, boidPoint).X * powerWall;
+                boid.Yvel += unitVectorInside_BasePoint(field_Curve, boidPoint).Y * powerWall;
+            }
+        }
+
+        //Rule 6: Avoid Predators
+        private (double xVel, double yVel) Predator(Boid boid, double distance, double power)
+        {
+            (double sumClosenessX, double sumClosenessY) = (0, 0);
+            for (int i = 0; i < PredatorCount; i++)
+            {
+                Boid predator = Boids_GH[i];
+                double distanceAway = boid.GetDistance(predator);
+                if (distanceAway < distance)
+                {
+                    double closeness = distance - distanceAway;
+                    sumClosenessX += (boid.X - predator.X) * closeness;
+                    sumClosenessY += (boid.Y - predator.Y) * closeness;
+                }
+            }
+            return (sumClosenessX * power, sumClosenessY * power);
+        
