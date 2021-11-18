@@ -19,7 +19,11 @@ Even though the Boids Algorithm code can be found from the "Resources".
 **Resources**.
 
 What is Boids?
+
 https://www.youtube.com/watch?v=4LWmRuB-uNU
+
+Algorithm
+
 https://swharden.com/CsharpDataVis/boids/boids.md.html
 
 
